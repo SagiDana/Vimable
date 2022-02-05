@@ -62,9 +62,56 @@ def execute():
 
     return Response(output)
 
-# @app.route('/', methods=["GET"])
-# def index():
-    # return Response("hh")
+def get_relvant_object(base):
+    global env
+    previous_words = base.split()
+    
+    if len(previous_words) < 1: word = ''
+    else: word = previous_words[-1].strip()
+
+    if '(' in word:
+        word = word[word.rfind('('):]
+
+    objects = word.split('.')
+
+    part_of_word = ''
+    if not word.endswith('.'):
+        part_of_word = objects[-1]
+        objects = objects[:-1]
+
+    current_level = 0
+    current_object = None
+
+    while len(objects)-1 >= current_level:
+        current_level += 1
+
+        try:
+            current_object = eval('.'.join(objects[:current_level]), env)
+        except Exception as e: break
+
+    return current_object, part_of_word
+
+@app.route('/completion', methods=["POST"])
+def completion():
+    global env
+
+    base = request.data.decode('utf-8')
+
+    obj, part = get_relvant_object(base)
+
+    candidates = []
+
+    if not obj: candidates = list(env.keys())
+    else: candidates = dir(obj)[::-1]
+
+    matches = []
+    for candidate in candidates:
+        if not candidate.startswith(part): continue
+
+        candidate = candidate[len(part):]
+        matches.append(candidate)
+
+    return Response(','.join(matches))
 
 
 def run_flask():
